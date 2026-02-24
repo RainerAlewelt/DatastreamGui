@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<XidML version="3.0">
+  <Instrumentation>
+    <Package name="MyStream" ienaKey="0x0A01">
+      <ParameterSet>
+        <Parameter name="temperature" index="0">
+          <DataFormat>Float32</DataFormat>
+          <RangeMinimum>0.0</RangeMinimum>
+          <RangeMaximum>1.0</RangeMaximum>
+        </Parameter>
+        <Parameter name="pressure" index="1">
+          <DataFormat>Float32</DataFormat>
+          <RangeMinimum>0.0</RangeMinimum>
+          <RangeMaximum>2.0</RangeMaximum>
+        </Parameter>
+        <Parameter name="altitude" index="2">
+          <DataFormat>Float32</DataFormat>
+          <RangeMinimum>0.0</RangeMinimum>
+          <RangeMaximum>3.0</RangeMaximum>
+        </Parameter>
+      </ParameterSet>
+    </Package>
+  </Instrumentation>
+</XidML>

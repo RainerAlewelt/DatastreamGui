@@ -1,0 +1,52 @@
+{
+  "panels" : [ {
+    "type" : "plot",
+    "x" : 1278.0,
+    "y" : 721.0,
+    "width" : 400.0,
+    "height" : 250.0,
+    "variables" : [ {
+      "name" : "f",
+      "color" : "#3399ff"
+    } ]
+  }, {
+    "type" : "plot",
+    "x" : 1279.0,
+    "y" : 366.0,
+    "width" : 400.0,
+    "height" : 250.0,
+    "variables" : [ {
+      "name" : "a",
+      "color" : "#ff6666"
+    } ]
+  }, {
+    "type" : "plot",
+    "x" : 1282.0,
+    "y" : 60.0,
+    "width" : 400.0,
+    "height" : 250.0,
+    "variables" : [ {
+      "name" : "x",
+      "color" : "#996699"
+    }, {
+      "name" : "z",
+      "color" : "#6680e6"
+    } ]
+  }, {
+    "type" : "numeric",
+    "x" : 914.0,
+    "y" : 58.0,
+    "width" : 186.0,
+    "height" : 50.0,
+    "variable" : "u",
+    "color" : "#996699"
+  }, {
+    "type" : "bar",
+    "x" : 928.0,
+    "y" : 171.0,
+    "width" : 220.0,
+    "height" : 60.0,
+    "variable" : "t",
+    "color" : "#669999"
+  } ]
+}
