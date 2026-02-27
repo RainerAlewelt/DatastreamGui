@@ -383,10 +383,11 @@ public class ConnectionWindow {
             scanStatus.setText("Scanning for " + duration + "s...");
             rows.clear();
 
+            NetworkInterface scanIface = ifaceCombo.getValue();
             Thread scanThread = new Thread(() -> {
                 try {
                     List<DataStream.StreamInfo> results =
-                            DataStream.discoverStreams(groups, port, duration);
+                            DataStream.discoverStreams(groups, port, duration, scanIface);
                     Platform.runLater(() -> {
                         for (DataStream.StreamInfo info : results) {
                             rows.add(new StreamRow(info));

@@ -452,21 +452,37 @@ public class DataStream {
     // Stream discovery
     // ------------------------------------------------------------------
 
+    /** Discover streams on all interfaces (backward compatible). */
+    public static List<StreamInfo> discoverStreams(List<String> groups, int port, double durationSeconds)
+            throws IOException {
+        return discoverStreams(groups, port, durationSeconds, null);
+    }
+
     /**
      * Discover active IENA streams on the given multicast groups.
      * Listens for {@code durationSeconds} and returns info about each unique (key, sourceIp) pair.
+     *
+     * @param networkInterface specific interface to join on (null = all interfaces)
      */
-    public static List<StreamInfo> discoverStreams(List<String> groups, int port, double durationSeconds)
+    public static List<StreamInfo> discoverStreams(List<String> groups, int port,
+                                                   double durationSeconds,
+                                                   NetworkInterface networkInterface)
             throws IOException {
         MulticastSocket socket = createMulticastSocket(port);
         socket.setSoTimeout(500); // match Python's 0.5s timeout
 
-        // Join all requested groups on all suitable interfaces
+        // Join all requested groups
         List<InetSocketAddress> joinedGroups = new ArrayList<>();
         List<NetworkInterface> joinedIfaces = new ArrayList<>();
         for (String group : groups) {
             InetSocketAddress addr = new InetSocketAddress(InetAddress.getByName(group), port);
-            joinMulticastOnAllInterfaces(socket, addr, joinedGroups, joinedIfaces);
+            if (networkInterface != null) {
+                socket.joinGroup(addr, networkInterface);
+                joinedGroups.add(addr);
+                joinedIfaces.add(networkInterface);
+            } else {
+                joinMulticastOnAllInterfaces(socket, addr, joinedGroups, joinedIfaces);
+            }
         }
 
         // key: "ienaKey|sourceIp"  value: packet count
