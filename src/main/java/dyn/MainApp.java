@@ -312,7 +312,17 @@ public class MainApp extends Application {
 
         controls.getChildren().addAll(btnSave, btnLoad, new Separator(), btnExit);
 
-        btnSave.setOnAction(ev -> LayoutManager.save(workspace));
+        btnSave.setOnAction(ev -> {
+            TextInputDialog dialog = new TextInputDialog("layout.json");
+            dialog.setTitle("Save Layout");
+            dialog.setHeaderText("Save current layout");
+            dialog.setContentText("Filename:");
+            dialog.showAndWait().ifPresent(filename -> {
+                if (!filename.isBlank()) {
+                    LayoutManager.save(workspace, filename);
+                }
+            });
+        });
         btnLoad.setOnAction(ev -> {
             FileChooser fc = new FileChooser();
             fc.setTitle("Load Layout");
