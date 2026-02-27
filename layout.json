@@ -1,24 +1,3 @@
 {
-  "panels" : [ {
-    "type" : "plot",
-    "x" : 512.0,
-    "y" : 424.0,
-    "width" : 400.0,
-    "height" : 250.0,
-    "variables" : [ "z" ]
-  }, {
-    "type" : "plot",
-    "x" : 515.0,
-    "y" : 152.0,
-    "width" : 400.0,
-    "height" : 250.0,
-    "variables" : [ "a" ]
-  }, {
-    "type" : "numeric",
-    "x" : 538.0,
-    "y" : 341.0,
-    "width" : 128.0,
-    "height" : 50.0,
-    "variable" : "a"
-  } ]
+  "panels" : [ ]
 }
