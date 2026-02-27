@@ -30,7 +30,7 @@ import org.w3c.dom.NodeList;
  */
 public class DataStream {
 
-    public enum Mode { UNICAST, MULTICAST }
+    public enum Mode { UNICAST, MULTICAST, BROADCAST }
 
     /** Metadata for a single stream parameter, parsed from XidML. */
     public record ParameterInfo(String name, int index, String unit,
@@ -190,6 +190,8 @@ public class DataStream {
         StringBuilder sb = new StringBuilder();
         if (mode == Mode.MULTICAST) {
             sb.append(multicastGroup).append(":").append(port);
+        } else if (mode == Mode.BROADCAST) {
+            sb.append("broadcast port ").append(port);
         } else {
             sb.append("port ").append(port);
         }
@@ -225,6 +227,13 @@ public class DataStream {
                 socket = multicastSocket;
                 System.out.println("Joined multicast group " + multicastGroup
                         + " on UDP port " + port);
+            } else if (mode == Mode.BROADCAST) {
+                DatagramSocket ds = new DatagramSocket(null);
+                ds.setReuseAddress(true);
+                ds.setBroadcast(true);
+                ds.bind(new InetSocketAddress(port));
+                socket = ds;
+                System.out.println("Listening for broadcast IENA packets on UDP port " + port + " ...");
             } else {
                 socket = new DatagramSocket(port);
                 System.out.println("Listening for IENA packets on UDP port " + port + " ...");

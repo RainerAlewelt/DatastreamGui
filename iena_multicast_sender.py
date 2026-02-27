@@ -152,6 +152,9 @@ def main():
                         help='IENA stream key (default: 0x0A01)')
     parser.add_argument('--ttl', type=int, default=1,
                         help='Multicast TTL / hop limit (default: 1)')
+    parser.add_argument('--broadcast', default=None, metavar='ADDR',
+                        help='Broadcast address (e.g. 255.255.255.255). '
+                             'Overrides --group and sends via SO_BROADCAST.')
     parser.add_argument('--iface', default='',
                         help='Source interface IP for multicast (default: OS choice)')
     parser.add_argument('--vars', default=default_vars,
@@ -169,28 +172,37 @@ def main():
     # Generate XidML metadata file
     generate_xidml(param_names, args.key, args.config_out)
 
-    # --- create UDP socket for multicast sending ---
+    # --- create UDP socket ---
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
-    # set multicast TTL (how many hops the packet can traverse)
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL,
-                    struct.pack('b', args.ttl))
+    broadcast_mode = args.broadcast is not None
+    dest_addr = args.broadcast if broadcast_mode else args.group
 
-    # optionally bind to a specific interface
-    if args.iface:
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF,
-                        socket.inet_aton(args.iface))
+    if broadcast_mode:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    else:
+        # set multicast TTL (how many hops the packet can traverse)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL,
+                        struct.pack('b', args.ttl))
+        # optionally bind to a specific interface
+        if args.iface:
+            sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF,
+                            socket.inet_aton(args.iface))
 
     interval = 1.0 / args.rate
     sequence = 0
 
-    print(f"IENA Multicast Sender")
-    print(f"  Group : {args.group}:{args.port}")
+    if broadcast_mode:
+        print(f"IENA Broadcast Sender")
+        print(f"  Dest  : {dest_addr}:{args.port}")
+    else:
+        print(f"IENA Multicast Sender")
+        print(f"  Group : {dest_addr}:{args.port}")
+        print(f"  TTL   : {args.ttl}")
+        if args.iface:
+            print(f"  Iface : {args.iface}")
     print(f"  Key   : 0x{args.key:04X}")
     print(f"  Rate  : {args.rate} Hz")
-    print(f"  TTL   : {args.ttl}")
-    if args.iface:
-        print(f"  Iface : {args.iface}")
     print(f"  Vars  : {', '.join(f'{n}[0..{i+1}]' for i, n in enumerate(param_names))}")
     print(f"  Config: {args.config_out}")
     print("Press Ctrl+C to stop.\n")
@@ -201,7 +213,7 @@ def main():
 
             values = generate_random_values(num_params)
             packet = build_iena_packet(args.key, sequence, values, num_params)
-            sock.sendto(packet, (args.group, args.port))
+            sock.sendto(packet, (dest_addr, args.port))
 
             if sequence % max(1, int(args.rate)) == 0:
                 preview = ', '.join(

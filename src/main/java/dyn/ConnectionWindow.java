@@ -68,7 +68,7 @@ public class ConnectionWindow {
         TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 
-        tabPane.getTabs().addAll(createUnicastTab(), createMulticastTab());
+        tabPane.getTabs().addAll(createUnicastTab(), createMulticastTab(), createBroadcastTab());
 
         Scene scene = new Scene(tabPane, 550, 550);
         dialog.setScene(scene);
@@ -431,6 +431,57 @@ public class ConnectionWindow {
                 btnConnectNoScan,
                 errorLabel
         );
+        tab.setContent(content);
+        return tab;
+    }
+
+    // ===== Broadcast Tab =====
+
+    private Tab createBroadcastTab() {
+        Tab tab = new Tab("Broadcast");
+
+        VBox content = new VBox(12);
+        content.setPadding(new Insets(20));
+        content.setAlignment(Pos.TOP_LEFT);
+
+        Label lblPort = new Label("Port:");
+        TextField portField = new TextField("5001");
+        portField.setMaxWidth(200);
+
+        // XidML chooser
+        Object[] xidml = createXidMLChooser();
+        HBox xidmlRow = (HBox) xidml[0];
+        TextField xidmlPath = (TextField) xidml[1];
+        Label xidmlPreview = (Label) xidml[2];
+
+        Button btnConnect = new Button("Connect");
+        btnConnect.setStyle("-fx-background-color: #339933; -fx-text-fill: white;");
+        btnConnect.setMaxWidth(200);
+
+        Label statusLabel = new Label();
+        statusLabel.setStyle("-fx-text-fill: #cc3333;");
+
+        btnConnect.setOnAction(ev -> {
+            try {
+                int port = Integer.parseInt(portField.getText().trim());
+                List<DataStream.ParameterInfo> params = parseXidMLOrDefault(xidmlPath, statusLabel);
+                if (params != null && params.isEmpty()) return; // error already shown
+
+                DataStream ds;
+                if (params != null) {
+                    ds = new DataStream(DataStream.Mode.BROADCAST, port, null, -1, params);
+                } else {
+                    ds = new DataStream(DataStream.Mode.BROADCAST, port, null, -1);
+                }
+                ds.start();
+                onConnect.accept(ds);
+                dialog.close();
+            } catch (NumberFormatException ex) {
+                statusLabel.setText("Invalid port number");
+            }
+        });
+
+        content.getChildren().addAll(lblPort, portField, xidmlRow, xidmlPreview, btnConnect, statusLabel);
         tab.setContent(content);
         return tab;
     }
