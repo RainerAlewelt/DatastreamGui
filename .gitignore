@@ -1,4 +1,25 @@
-__pycache__/
+# Build output
 target/
-.claude/
 *.class
+
+# Python
+__pycache__/
+*.pyc
+
+# Generated configs
+*.xidml
+
+# Claude
+.claude/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
