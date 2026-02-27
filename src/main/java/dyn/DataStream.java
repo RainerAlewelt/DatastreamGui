@@ -52,6 +52,7 @@ public class DataStream {
     private final int payloadSize;
     private final int expectedPktSize;
     private final String[] paramNames;
+    private final NetworkInterface networkInterface; // null = all / OS default
 
     private final Map<String, Double> values = new ConcurrentHashMap<>();
     private final List<Consumer<Map<String, Double>>> listeners = new ArrayList<>();
@@ -107,7 +108,7 @@ public class DataStream {
     /**
      * Build the default a-z parameter list (legacy fallback when no XidML is provided).
      */
-    private static List<ParameterInfo> defaultParameters() {
+    static List<ParameterInfo> defaultParameters() {
         List<ParameterInfo> params = new ArrayList<>();
         for (int i = 0; i < 26; i++) {
             String name = String.valueOf((char) ('a' + i));
@@ -141,20 +142,31 @@ public class DataStream {
     }
 
     /**
-     * Full constructor — choose mode, port, multicast group, key filter, and parameters.
-     *
-     * @param mode           UNICAST or MULTICAST
-     * @param port           UDP port to listen on
-     * @param multicastGroup multicast group address (e.g. "239.1.1.1"), ignored for unicast
-     * @param keyFilter      IENA key to accept (-1 = accept all)
-     * @param parameterInfos parameter definitions (from XidML or default)
+     * 5-arg constructor — backward compatible, no interface selection.
      */
     public DataStream(Mode mode, int port, String multicastGroup, int keyFilter,
                       List<ParameterInfo> parameterInfos) {
+        this(mode, port, multicastGroup, keyFilter, parameterInfos, null);
+    }
+
+    /**
+     * Full constructor — choose mode, port, multicast group, key filter, parameters,
+     * and optionally a specific network interface.
+     *
+     * @param mode             UNICAST, MULTICAST, or BROADCAST
+     * @param port             UDP port to listen on
+     * @param multicastGroup   multicast group address (e.g. "239.1.1.1"), ignored for unicast/broadcast
+     * @param keyFilter        IENA key to accept (-1 = accept all)
+     * @param parameterInfos   parameter definitions (from XidML or default)
+     * @param networkInterface specific interface to use (null = all / OS default)
+     */
+    public DataStream(Mode mode, int port, String multicastGroup, int keyFilter,
+                      List<ParameterInfo> parameterInfos, NetworkInterface networkInterface) {
         this.mode = mode;
         this.port = port;
         this.multicastGroup = multicastGroup;
         this.keyFilter = keyFilter;
+        this.networkInterface = networkInterface;
         this.parameterInfos = List.copyOf(parameterInfos);
         this.numParams = parameterInfos.size();
         this.payloadSize = numParams * 4;
@@ -198,6 +210,9 @@ public class DataStream {
         if (keyFilter >= 0) {
             sb.append(" [key ").append(String.format("0x%04X", keyFilter)).append("]");
         }
+        if (networkInterface != null) {
+            sb.append(" [").append(networkInterface.getDisplayName()).append("]");
+        }
         return sb.toString();
     }
 
@@ -223,17 +238,36 @@ public class DataStream {
                 multicastSocket = createMulticastSocket(port);
                 InetAddress group = InetAddress.getByName(multicastGroup);
                 InetSocketAddress groupAddr = new InetSocketAddress(group, port);
-                joinMulticastOnAllInterfaces(multicastSocket, groupAddr, joinedGroups, joinedIfaces);
+                if (networkInterface != null) {
+                    multicastSocket.joinGroup(groupAddr, networkInterface);
+                    joinedGroups.add(groupAddr);
+                    joinedIfaces.add(networkInterface);
+                } else {
+                    joinMulticastOnAllInterfaces(multicastSocket, groupAddr, joinedGroups, joinedIfaces);
+                }
                 socket = multicastSocket;
+                String ifaceInfo = networkInterface != null
+                        ? " on " + networkInterface.getDisplayName() : "";
                 System.out.println("Joined multicast group " + multicastGroup
-                        + " on UDP port " + port);
+                        + " on UDP port " + port + ifaceInfo);
             } else if (mode == Mode.BROADCAST) {
                 DatagramSocket ds = new DatagramSocket(null);
                 ds.setReuseAddress(true);
                 ds.setBroadcast(true);
-                ds.bind(new InetSocketAddress(port));
+                InetAddress bindAddr;
+                if (networkInterface != null) {
+                    InetAddress ifaceAddr = getIPv4Address(networkInterface);
+                    bindAddr = ifaceAddr != null ? ifaceAddr
+                            : InetAddress.getByName("0.0.0.0");
+                } else {
+                    bindAddr = InetAddress.getByName("0.0.0.0");
+                }
+                ds.bind(new InetSocketAddress(bindAddr, port));
                 socket = ds;
-                System.out.println("Listening for broadcast IENA packets on UDP port " + port + " ...");
+                String ifaceInfo = networkInterface != null
+                        ? " on " + networkInterface.getDisplayName() : "";
+                System.out.println("Listening for broadcast IENA packets on UDP port "
+                        + port + ifaceInfo + " ...");
             } else {
                 socket = new DatagramSocket(port);
                 System.out.println("Listening for IENA packets on UDP port " + port + " ...");
@@ -307,6 +341,35 @@ public class DataStream {
             }
         }
         return result;
+    }
+
+    /**
+     * Return all usable network interfaces (up, non-loopback).
+     * Includes both multicast and broadcast interfaces so callers
+     * can use the list for either mode.
+     */
+    public static List<NetworkInterface> findUsableInterfaces() throws SocketException {
+        List<NetworkInterface> result = new ArrayList<>();
+        Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+        while (interfaces.hasMoreElements()) {
+            NetworkInterface ni = interfaces.nextElement();
+            if (ni.isUp() && !ni.isLoopback()) {
+                result.add(ni);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Get the first IPv4 address from a network interface, or null if none.
+     */
+    static InetAddress getIPv4Address(NetworkInterface ni) {
+        Enumeration<InetAddress> addrs = ni.getInetAddresses();
+        while (addrs.hasMoreElements()) {
+            InetAddress addr = addrs.nextElement();
+            if (addr instanceof Inet4Address) return addr;
+        }
+        return null;
     }
 
     /**

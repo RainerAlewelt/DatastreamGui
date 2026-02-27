@@ -156,7 +156,7 @@ def main():
                         help='Broadcast address (e.g. 255.255.255.255). '
                              'Overrides --group and sends via SO_BROADCAST.')
     parser.add_argument('--iface', default='',
-                        help='Source interface IP for multicast (default: OS choice)')
+                        help='Source interface IP for multicast/broadcast (default: OS choice)')
     parser.add_argument('--vars', default=default_vars,
                         help='Comma-separated variable names (default: a through z)')
     parser.add_argument('--config-out', default='stream_config.xidml',
@@ -180,6 +180,8 @@ def main():
 
     if broadcast_mode:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        if args.iface:
+            sock.bind((args.iface, 0))
     else:
         # set multicast TTL (how many hops the packet can traverse)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL,
@@ -195,6 +197,8 @@ def main():
     if broadcast_mode:
         print(f"IENA Broadcast Sender")
         print(f"  Dest  : {dest_addr}:{args.port}")
+        if args.iface:
+            print(f"  Iface : {args.iface}")
     else:
         print(f"IENA Multicast Sender")
         print(f"  Group : {dest_addr}:{args.port}")

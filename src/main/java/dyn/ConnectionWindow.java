@@ -14,6 +14,8 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
@@ -153,6 +155,36 @@ public class ConnectionWindow {
         return new Object[]{ row, pathField, previewLabel };
     }
 
+    // ===== Network interface combo helper =====
+
+    /**
+     * Create a ComboBox listing usable network interfaces.
+     * The first entry is null ("All interfaces").
+     */
+    private ComboBox<NetworkInterface> createInterfaceCombo() {
+        ComboBox<NetworkInterface> combo = new ComboBox<>();
+        combo.getItems().add(null); // "All interfaces"
+        try {
+            combo.getItems().addAll(DataStream.findUsableInterfaces());
+        } catch (Exception e) {
+            System.err.println("Could not enumerate interfaces: " + e.getMessage());
+        }
+        combo.setValue(null);
+        combo.setMaxWidth(300);
+        combo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(NetworkInterface ni) {
+                if (ni == null) return "All interfaces";
+                InetAddress addr = DataStream.getIPv4Address(ni);
+                String ip = addr != null ? addr.getHostAddress() : "no IPv4";
+                return ni.getDisplayName() + " (" + ip + ")";
+            }
+            @Override
+            public NetworkInterface fromString(String s) { return null; }
+        });
+        return combo;
+    }
+
     /**
      * Parse XidML from the given path field, or return null for default a-z parameters.
      * Shows errors on the errorLabel and returns null on failure.
@@ -243,6 +275,9 @@ public class ConnectionWindow {
         Label lblPort = new Label("Port:");
         TextField portField = new TextField("5001");
         portField.setMaxWidth(200);
+
+        Label lblIface = new Label("Network Interface:");
+        ComboBox<NetworkInterface> ifaceCombo = createInterfaceCombo();
 
         Label lblScan = new Label("Scan duration (seconds):");
         TextField scanField = new TextField("5");
@@ -383,12 +418,11 @@ public class ConnectionWindow {
                 List<DataStream.ParameterInfo> params = parseXidMLOrDefault(xidmlPath, errorLabel);
                 if (params != null && params.isEmpty()) return;
 
-                DataStream ds;
-                if (params != null) {
-                    ds = new DataStream(DataStream.Mode.MULTICAST, port, group, selected.getRawKey(), params);
-                } else {
-                    ds = new DataStream(DataStream.Mode.MULTICAST, port, group, selected.getRawKey());
-                }
+                NetworkInterface iface = ifaceCombo.getValue();
+                DataStream ds = new DataStream(DataStream.Mode.MULTICAST, port, group,
+                        selected.getRawKey(),
+                        params != null ? params : DataStream.defaultParameters(),
+                        iface);
                 ds.start();
                 onConnect.accept(ds);
                 dialog.close();
@@ -405,12 +439,10 @@ public class ConnectionWindow {
                 List<DataStream.ParameterInfo> params = parseXidMLOrDefault(xidmlPath, errorLabel);
                 if (params != null && params.isEmpty()) return;
 
-                DataStream ds;
-                if (params != null) {
-                    ds = new DataStream(DataStream.Mode.MULTICAST, port, group, -1, params);
-                } else {
-                    ds = new DataStream(DataStream.Mode.MULTICAST, port, group, -1);
-                }
+                NetworkInterface iface = ifaceCombo.getValue();
+                DataStream ds = new DataStream(DataStream.Mode.MULTICAST, port, group, -1,
+                        params != null ? params : DataStream.defaultParameters(),
+                        iface);
                 ds.start();
                 onConnect.accept(ds);
                 dialog.close();
@@ -422,6 +454,7 @@ public class ConnectionWindow {
         content.getChildren().addAll(
                 lblGroup, groupField,
                 lblPort, portField,
+                lblIface, ifaceCombo,
                 lblScan, scanField,
                 xidmlRow, xidmlPreview,
                 btnScan, progressBar, scanStatus,
@@ -448,6 +481,9 @@ public class ConnectionWindow {
         TextField portField = new TextField("5001");
         portField.setMaxWidth(200);
 
+        Label lblIface = new Label("Network Interface:");
+        ComboBox<NetworkInterface> ifaceCombo = createInterfaceCombo();
+
         // XidML chooser
         Object[] xidml = createXidMLChooser();
         HBox xidmlRow = (HBox) xidml[0];
@@ -467,12 +503,10 @@ public class ConnectionWindow {
                 List<DataStream.ParameterInfo> params = parseXidMLOrDefault(xidmlPath, statusLabel);
                 if (params != null && params.isEmpty()) return; // error already shown
 
-                DataStream ds;
-                if (params != null) {
-                    ds = new DataStream(DataStream.Mode.BROADCAST, port, null, -1, params);
-                } else {
-                    ds = new DataStream(DataStream.Mode.BROADCAST, port, null, -1);
-                }
+                NetworkInterface iface = ifaceCombo.getValue();
+                DataStream ds = new DataStream(DataStream.Mode.BROADCAST, port, null, -1,
+                        params != null ? params : DataStream.defaultParameters(),
+                        iface);
                 ds.start();
                 onConnect.accept(ds);
                 dialog.close();
@@ -481,7 +515,8 @@ public class ConnectionWindow {
             }
         });
 
-        content.getChildren().addAll(lblPort, portField, xidmlRow, xidmlPreview, btnConnect, statusLabel);
+        content.getChildren().addAll(lblPort, portField, lblIface, ifaceCombo,
+                xidmlRow, xidmlPreview, btnConnect, statusLabel);
         tab.setContent(content);
         return tab;
     }
